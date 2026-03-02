@@ -5,7 +5,8 @@
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+# Ensure repo root is on PYTHONPATH so `import agent` works when running this file directly.
+sys.path.insert(0, os.path.dirname(__file__))
 
 
 # ══════════════════════════════════════════════════════
