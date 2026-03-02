@@ -69,6 +69,19 @@ def main():
         # Resume with same goal (the new info is in short_term)
         state = agent.run(goal, state=state)
 
+    # Optional: persist snapshot after run (so long_term is not lost between processes)
+    if os.environ.get("AUTO_SAVE_SNAPSHOT_ON_EXIT", "0") == "1":
+        snap = os.environ.get("AGENT_SNAPSHOT", DEFAULT_SNAPSHOT)
+        try:
+            if "save_snapshot_meta" in state.tools:
+                # call tool directly (offline) to persist long_term + evolved_tools
+                state.tools["save_snapshot_meta"].fn(state=state, path=snap)
+                print(f"\n[run_goal] snapshot saved: {snap}")
+            else:
+                print("\n[run_goal] save_snapshot_meta tool not available; snapshot not saved")
+        except Exception as e:
+            print(f"\n[run_goal] snapshot save failed: {e}")
+
     print("\n=== RUN_GOAL RESULT ===")
     print(state.meta.get("final_answer") or "(no final_answer)")
 
