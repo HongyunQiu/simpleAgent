@@ -109,8 +109,17 @@ class OpenAIBackend(LLMBackend):
         if self._use_response_format:
             kwargs["response_format"] = {"type": "json_object"}
 
+        # For vLLM reasoning-enabled builds: disable thinking so answers land in
+        # message.content (instead of only in reasoning fields).
+        if not self._use_response_format:
+            kwargs["chat_template_kwargs"] = {"enable_thinking": False}
+
         resp = self.client.chat.completions.create(**kwargs)
-        content = resp.choices[0].message.content
+        msg = resp.choices[0].message
+        content = getattr(msg, "content", None)
+        if content is None:
+            content = getattr(msg, "reasoning_content", None) or getattr(msg, "reasoning", None)
+
         # Some OpenAI-compatible servers / SDK versions may return non-str content.
         if isinstance(content, str):
             return content
