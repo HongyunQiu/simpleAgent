@@ -112,7 +112,8 @@ class OpenAIBackend(LLMBackend):
         # For vLLM reasoning-enabled builds: disable thinking so answers land in
         # message.content (instead of only in reasoning fields).
         if not self._use_response_format:
-            kwargs["chat_template_kwargs"] = {"enable_thinking": False}
+            # OpenAI Python SDK doesn't accept arbitrary kwargs; vLLM supports this via extra_body.
+            kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
 
         resp = self.client.chat.completions.create(**kwargs)
         msg = resp.choices[0].message
