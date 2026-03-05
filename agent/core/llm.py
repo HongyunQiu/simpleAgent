@@ -92,7 +92,8 @@ class OpenAIBackend(LLMBackend):
         # the prompt is long; set an explicit positive value.
         if max_tokens is None:
             import os
-            max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "2048"))
+            # Default higher because tool_call JSON (esp. long code strings) is easy to truncate.
+            max_tokens = int(os.environ.get("LLM_MAX_TOKENS", "4096"))
         self.max_tokens = max(1, int(max_tokens))
 
     def complete(self, messages: list[dict], system: str) -> str:
