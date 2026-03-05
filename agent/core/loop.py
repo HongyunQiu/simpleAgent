@@ -215,6 +215,30 @@ def run(
             hooks.on_thought(f"[token] prompt≈{est} / context={ctx} (est), max_tokens={getattr(llm, 'max_tokens', 'n/a')}")
 
         # 3. 调用 LLM
+        # Optional debug: dump what we send to the LLM and what we got back.
+        # Enable via: DEBUG_LLM_IO=1
+        import os
+        if os.environ.get("DEBUG_LLM_IO", "0") == "1":
+            DEEP_GREEN = "\033[32m"  # deep green
+            DARK_RED = "\033[31m"    # dark red
+            RESET = "\033[0m"
+            max_chars = int(os.environ.get("DEBUG_LLM_IO_MAX_CHARS", "200000"))
+
+            try:
+                payload = {
+                    "system": system,
+                    "messages": messages,
+                    "max_tokens": getattr(llm, "max_tokens", None),
+                }
+                s = json.dumps(payload, ensure_ascii=False, indent=2)
+            except Exception:
+                s = f"(failed to serialize payload) system_len={len(system)} messages={len(messages)}"
+
+            if len(s) > max_chars:
+                s = s[:max_chars] + "\n...[TRUNCATED]"
+
+            print(f"{DEEP_GREEN}\n[DEBUG_LLM_IO] >>> request{RESET}\n{s}\n")
+
         try:
             raw_response = llm.complete(messages, system)
         except Exception as e:
@@ -242,6 +266,15 @@ def run(
             })
             state.iteration += 1
             continue
+
+        if os.environ.get("DEBUG_LLM_IO", "0") == "1":
+            DARK_RED = "\033[31m"    # dark red
+            RESET = "\033[0m"
+            max_chars = int(os.environ.get("DEBUG_LLM_IO_MAX_CHARS", "200000"))
+            s2 = raw_response if isinstance(raw_response, str) else str(raw_response)
+            if len(s2) > max_chars:
+                s2 = s2[:max_chars] + "\n...[TRUNCATED]"
+            print(f"{DARK_RED}[DEBUG_LLM_IO] <<< response{RESET}\n{s2}\n")
 
         # 4. 解析动作
         action = parse_response(raw_response)
