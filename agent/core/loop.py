@@ -386,6 +386,10 @@ def run(
                 })
                 if hooks.on_error:
                     hooks.on_error("[验收失败] 未通过验收，继续 loop 进行补救")
+                    try:
+                        hooks.on_error("[验收失败详情] " + json.dumps(failures, ensure_ascii=False))
+                    except Exception:
+                        pass
 
                 # Feed back to the model with concrete failures.
                 state.short_term.append({
