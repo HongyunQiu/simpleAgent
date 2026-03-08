@@ -57,14 +57,45 @@ def tool_scratchpad_get(state: AgentState) -> ToolResult:
     return ToolResult(success=True, output=state.meta.get("scratchpad", ""))
 
 
+def _scratchpad_persist_to_disk(state: AgentState) -> None:
+    """Best-effort persist current scratchpad to $RUN_DIR/scratchpad.md.
+
+    This enables *during-run* visibility and recovery.
+    """
+    try:
+        run_dir = os.environ.get("RUN_DIR")
+        if not run_dir:
+            return
+        p = Path(run_dir) / "scratchpad.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(state.meta.get("scratchpad", "") or "", encoding="utf-8")
+    except Exception:
+        return
+
+
 def tool_scratchpad_set(state: AgentState, content: str) -> ToolResult:
-    """Overwrite scratchpad (editable short-term working memory)."""
+    """Overwrite scratchpad (editable short-term working memory).
+
+    Note: We preserve the task description header (seeded at run start) so the
+    scratchpad remains self-contained even if the model overwrites it.
+    """
     import os
     max_chars = int(os.environ.get("SCRATCHPAD_MAX_CHARS", "2000"))
     text = (content or "").strip()
+
+    task_desc = state.meta.get("_task_desc")
+    if isinstance(task_desc, str) and task_desc.strip():
+        # If caller didn't explicitly include task description, prepend it.
+        if "任务描述" not in text:
+            text = f"任务描述:\n{task_desc.strip()}\n\n" + text
+
     if len(text) > max_chars:
         text = text[:max_chars] + "\n...[SCRATCHPAD_TRUNCATED]"
     state.meta["scratchpad"] = text
+
+    # Persist immediately (during-run)
+    _scratchpad_persist_to_disk(state)
+
     return ToolResult(success=True, output=f"scratchpad set ({len(state.meta['scratchpad'])} chars)")
 
 
@@ -83,6 +114,10 @@ def tool_scratchpad_append(state: AgentState, content: str) -> ToolResult:
     if len(cur) > max_chars:
         cur = cur[:max_chars] + "\n...[SCRATCHPAD_TRUNCATED]"
     state.meta["scratchpad"] = cur
+
+    # Persist immediately (during-run)
+    _scratchpad_persist_to_disk(state)
+
     return ToolResult(success=True, output=f"scratchpad appended ({len(cur)} chars)")
 
 

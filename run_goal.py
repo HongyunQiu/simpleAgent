@@ -33,6 +33,8 @@ def main():
     os.environ.setdefault("RAW_MEMORY_PATH", str(run_dir / "raw_memory.ndjson"))
 
     goal = " ".join(sys.argv[1:]).strip() if len(sys.argv) > 1 else ""
+    # Expose the raw user goal (without injected prefixes) for scratchpad seeding.
+    os.environ["USER_GOAL"] = goal
     if not goal:
         print("Enter your goal/task, then press Ctrl-D (EOF) to run:\n")
         goal = sys.stdin.read().strip()
