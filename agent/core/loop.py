@@ -349,21 +349,24 @@ def run(
 
                 # Minimal hard checks: any claimed artifact paths in scratchpad/final_answer must exist.
                 text = (sp or "") + "\n" + (final_answer or "")
-                # match runs/... paths
-                paths = set(re.findall(r"(runs/\d{8}-\d{6}/[^\s\)\]\}<>\"']+)", text))
+                # match runs/... paths (be conservative; avoid capturing trailing punctuation/backticks)
+                raw_paths = set(re.findall(r"(runs/\d{8}-\d{6}/[^\s`\)\]\}<>\"']+)", text))
+
                 # Also allow $RUN_DIR placeholder
                 run_dir = os.environ.get("RUN_DIR")
                 if run_dir:
-                    # Expand common pattern like $RUN_DIR/artifacts/x
-                    for m in re.findall(r"\$RUN_DIR/([^\s\)\]\}<>\"']+)", text):
-                        paths.add(str(Path(run_dir) / m))
+                    for m in re.findall(r"\$RUN_DIR/([^\s`\)\]\}<>\"']+)", text):
+                        raw_paths.add(str(Path(run_dir) / m))
+
+                # Strip common trailing punctuation (English + CJK)
+                def _clean_path(s: str) -> str:
+                    return s.rstrip("`.,;:!?)\"'】）》》，。；：！？’”）")
+
+                paths = {_clean_path(p) for p in raw_paths if p}
 
                 failures = []
                 for p in sorted(paths):
                     pp = Path(p)
-                    # normalize relative to repo root for runs/... paths
-                    if not pp.is_absolute() and str(pp).startswith("runs/"):
-                        pp = Path(pp)
                     if not pp.exists():
                         failures.append({
                             "code": "artifact_missing",
